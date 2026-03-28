@@ -44,7 +44,7 @@ class SandboxMode {
     this.particles = null;
 
     // Smoothing for drawn lines
-    this._minPointDist = 8;  // min distance between samples (virtual units)
+    this._minPointDist = 3;  // min distance between samples (virtual units) — low for smooth curves
 
     // Panel method sampling
     this._velocityGrid     = null;
@@ -67,20 +67,22 @@ class SandboxMode {
       (navigator.hardwareConcurrency || 2) >= 4 ? 420 : 300
     ));
 
+    // Use full virtual viewport for particles (not just TUNNEL)
+    // V_W=1600, V_H=900 — spawn across entire height so mobile looks full
     this.particles = new ParticleSystem({
       count:        count,
-      spawnX:       TUNNEL.x,
-      spawnBandY:   TUNNEL.y + 30,
-      spawnBandH:   TUNNEL.h - 60,
+      spawnX:       0,
+      spawnBandY:   450,        // Center of the screen
+      spawnBandH:   900,        // Full height spread
       windSpeed:    this.particleSpeed,
       gravity:      0,
       wallBounce:   false,        // no floor/ceiling bounce — open tunnel
-      trailLength:  18,
+      trailLength:  40,           // Long trails to look like wind tunnel stream lines
       tunnelBounds: {
-        x: TUNNEL.x,
-        y: TUNNEL.y - 200,        // extend bounds significantly so no recycle at edges
-        w: TUNNEL.w,
-        h: TUNNEL.h + 400,
+        x: -100,
+        y: -100,
+        w: 1800,
+        h: 1100,
       },
     });
   }
@@ -463,9 +465,9 @@ class SandboxMode {
   _smoothPath(pts) {
     if (pts.length < 3) return pts;
 
-    // Apply 2 iterations of Chaikin smoothing
+    // Apply 3 iterations of Chaikin smoothing for very smooth curves
     let result = pts.slice();
-    for (let iter = 0; iter < 2; iter++) {
+    for (let iter = 0; iter < 3; iter++) {
       const smoothed = [];
       for (let i = 0; i < result.length - 1; i++) {
         const p0 = result[i];
@@ -482,8 +484,8 @@ class SandboxMode {
       result = smoothed;
     }
 
-    // Downsample if too many points (keep ~60-80 max for performance)
-    const maxPts = 80;
+    // Downsample if too many points (keep ~150 max for performance)
+    const maxPts = 150;
     if (result.length > maxPts) {
       const step = result.length / maxPts;
       const down = [];
@@ -500,8 +502,8 @@ class SandboxMode {
 
   _windToParticleSpeed(ms) {
     // Map real-world m/s to virtual units/s
-    // At 30 m/s we want ~280 vu/s (similar to game phases)
-    return ms * 9.3;
+    // Make the particles move extremely fast to look like a wind tunnel
+    return ms * 22;
   }
 
   // ── GETTERS FOR RENDERER ───────────────────────────────────────

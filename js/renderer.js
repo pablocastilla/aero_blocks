@@ -1060,15 +1060,9 @@ class Renderer {
     const pts = shape.points;
     if (!pts || pts.length < 3) return;
 
-    // Fill
+    // Build smooth path using quadratic Bézier through midpoints
     ctx.beginPath();
-    let p0 = this.toCanvas(pts[0].x, pts[0].y);
-    ctx.moveTo(p0.cx, p0.cy);
-    for (let i = 1; i < pts.length; i++) {
-      const p = this.toCanvas(pts[i].x, pts[i].y);
-      ctx.lineTo(p.cx, p.cy);
-    }
-    ctx.closePath();
+    this._traceSmoothPath(pts, true);  // closed=true
 
     // Semi-transparent fill
     ctx.fillStyle = 'rgba(20,35,42,0.7)';
@@ -1098,27 +1092,21 @@ class Renderer {
     const pts = draw.points;
     if (pts.length < 2) return;
 
+    // Smooth curve through the points being drawn
     ctx.beginPath();
-    let p0 = this.toCanvas(pts[0].x, pts[0].y);
-    ctx.moveTo(p0.cx, p0.cy);
-    for (let i = 1; i < pts.length; i++) {
-      const p = this.toCanvas(pts[i].x, pts[i].y);
-      ctx.lineTo(p.cx, p.cy);
-    }
+    this._traceSmoothPath(pts, false);  // open path
 
-    // Dashed neon line
-    ctx.setLineDash([this.px(8), this.px(6)]);
-    ctx.strokeStyle = 'rgba(0,240,255,0.7)';
-    ctx.lineWidth   = this.px(2.5);
+    // Solid neon line (no dash — feels more like drawing)
+    ctx.strokeStyle = 'rgba(0,240,255,0.8)';
+    ctx.lineWidth   = this.px(3);
     ctx.shadowColor = C_PRIMARY;
-    ctx.shadowBlur  = 8 * this.scale;
+    ctx.shadowBlur  = 10 * this.scale;
     ctx.lineJoin    = 'round';
     ctx.lineCap     = 'round';
     ctx.stroke();
-    ctx.setLineDash([]);
     ctx.shadowBlur  = 0;
 
-    // Draw closing line (dashed, dimmer) from last point to first
+    // Draw closing line (dimmer) from last point to first
     if (pts.length > 5) {
       const last  = this.toCanvas(pts[pts.length - 1].x, pts[pts.length - 1].y);
       const first = this.toCanvas(pts[0].x, pts[0].y);
@@ -1126,7 +1114,7 @@ class Renderer {
       ctx.moveTo(last.cx, last.cy);
       ctx.lineTo(first.cx, first.cy);
       ctx.setLineDash([this.px(4), this.px(8)]);
-      ctx.strokeStyle = 'rgba(0,240,255,0.25)';
+      ctx.strokeStyle = 'rgba(0,240,255,0.2)';
       ctx.lineWidth   = this.px(1.5);
       ctx.stroke();
       ctx.setLineDash([]);
@@ -1141,6 +1129,82 @@ class Renderer {
     ctx.arc(sp.cx, sp.cy, this.px(4), 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
+  }
+
+  /**
+   * Trace a smooth path through points using quadratic Bézier curves.
+   * Each segment uses the actual point as the control point and the
+   * midpoint between consecutive points as the on-curve point.
+   * This produces perfectly smooth, continuous C1-continuous curves.
+   */
+  _traceSmoothPath(pts, closed) {
+    if (pts.length < 2) return;
+
+    const canvasPts = pts.map(p => this.toCanvas(p.x, p.y));
+
+    if (canvasPts.length === 2) {
+      this.ctx.moveTo(canvasPts[0].cx, canvasPts[0].cy);
+      this.ctx.lineTo(canvasPts[1].cx, canvasPts[1].cy);
+      return;
+    }
+
+    const ctx = this.ctx;
+
+    if (closed) {
+      // For closed shapes: start at midpoint between first and second
+      const first = canvasPts[0];
+      const second = canvasPts[1];
+      ctx.moveTo(
+        (first.cx + second.cx) * 0.5,
+        (first.cy + second.cy) * 0.5
+      );
+      for (let i = 1; i < canvasPts.length - 1; i++) {
+        const cp = canvasPts[i];
+        const next = canvasPts[i + 1];
+        ctx.quadraticCurveTo(
+          cp.cx, cp.cy,
+          (cp.cx + next.cx) * 0.5,
+          (cp.cy + next.cy) * 0.5
+        );
+      }
+      // Close back to start
+      const last = canvasPts[canvasPts.length - 1];
+      ctx.quadraticCurveTo(
+        last.cx, last.cy,
+        (last.cx + first.cx) * 0.5,
+        (last.cy + first.cy) * 0.5
+      );
+      ctx.quadraticCurveTo(
+        first.cx, first.cy,
+        (first.cx + second.cx) * 0.5,
+        (first.cy + second.cy) * 0.5
+      );
+      ctx.closePath();
+    } else {
+      // Open path: start at first point
+      ctx.moveTo(canvasPts[0].cx, canvasPts[0].cy);
+      // Line to first midpoint
+      if (canvasPts.length > 2) {
+        ctx.lineTo(
+          (canvasPts[0].cx + canvasPts[1].cx) * 0.5,
+          (canvasPts[0].cy + canvasPts[1].cy) * 0.5
+        );
+        for (let i = 1; i < canvasPts.length - 1; i++) {
+          const cp = canvasPts[i];
+          const next = canvasPts[i + 1];
+          ctx.quadraticCurveTo(
+            cp.cx, cp.cy,
+            (cp.cx + next.cx) * 0.5,
+            (cp.cy + next.cy) * 0.5
+          );
+        }
+        // Line to last point
+        const last = canvasPts[canvasPts.length - 1];
+        ctx.lineTo(last.cx, last.cy);
+      } else {
+        ctx.lineTo(canvasPts[1].cx, canvasPts[1].cy);
+      }
+    }
   }
 
   _drawSandboxParticles(particles) {
@@ -1160,21 +1224,42 @@ class Renderer {
       const b = Math.round(255 - speedRatio * 68);
       const alpha = 0.55 + speedRatio * 0.45;
 
-      // Trail
-      if (p.trail.length > 1) {
+      // Draw continuous stream line (streak) instead of dots
+      ctx.beginPath();
+      // Start at oldest point in trail
+      if (p.trail.length > 0) {
+        let first = true;
         for (let t = 0; t < p.trail.length; t++) {
           const { cx: tx, cy: ty } = this.toCanvas(p.trail[t].x, p.trail[t].y);
-          const ta  = (t / p.trail.length) * alpha * 0.35;
-          ctx.fillStyle = `rgba(${r},${g},${b},${ta})`;
-          const ts = Math.max(0.5, scale * (0.8 + speedRatio * 0.5));
-          ctx.fillRect(tx - ts * 0.5, ty - ts * 0.5, ts, ts);
+          if (first) {
+            ctx.moveTo(tx, ty);
+            first = false;
+          } else {
+            ctx.lineTo(tx, ty);
+          }
         }
+        ctx.lineTo(cx, cy); // connect to current pos
+      } else {
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx - p.vx * 0.05 * scale, cy - p.vy * 0.05 * scale); // small line if no trail
       }
 
-      // Particle dot
-      ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
-      const ps = Math.max(1, scale * (1.5 + speedRatio));
-      ctx.fillRect(cx - ps * 0.5, cy - ps * 0.5, ps, ps);
+      // Stroke thickest/brightest at the head, fading to tail
+      ctx.strokeStyle = `rgba(${r},${g},${b},${alpha * 0.6})`;
+      const lw = Math.max(0.5, scale * (1.5 + speedRatio));
+      
+      // We can simulate an fading line by creating a linear gradient or using a solid semitransparent line
+      // Given many particles, simple stroke is best for perf
+      ctx.lineWidth = lw;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
+      // Bright dot at the head
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+      ctx.beginPath();
+      ctx.arc(cx, cy, lw * 0.7, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 }

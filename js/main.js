@@ -828,4 +828,23 @@ class Game {
 // Instantiate once DOM is ready
 window.addEventListener('DOMContentLoaded', () => {
   window.game = new Game();
+
+  // ── AUTO-FULLSCREEN ON MOBILE ──────────────────────────────
+  // Request fullscreen on first tap (mobile browsers only).
+  // This hides the address bar for an immersive experience.
+  const isMobile = ('ontouchstart' in window) || window.innerWidth < 900;
+  if (isMobile && document.documentElement.requestFullscreen) {
+    const goFullscreen = () => {
+      document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+      document.removeEventListener('touchstart', goFullscreen);
+      document.removeEventListener('click', goFullscreen);
+    };
+    document.addEventListener('touchstart', goFullscreen, { once: true });
+    document.addEventListener('click', goFullscreen, { once: true });
+  }
+
+  // Handle fullscreen change → trigger resize
+  document.addEventListener('fullscreenchange', () => {
+    window.dispatchEvent(new Event('resize'));
+  });
 });

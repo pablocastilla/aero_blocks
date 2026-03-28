@@ -1,0 +1,11 @@
+{
+  "name": "AERO//BLOCKS",
+  "short_name": "AeroBlocks",
+  "description": "Aerodynamic Puzzle Trainer — Wind Tunnel Division",
+  "start_url": "/index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0e0e14",
+  "theme_color": "#0e0e14",
+  "icons": []
+}
