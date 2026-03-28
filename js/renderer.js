@@ -302,27 +302,36 @@ class Renderer {
       const speed       = p.speed();
       const speedRatio  = Math.min(1, speed / 350);
 
-      // Colour: cyan at slow → white at fast
-      const r = Math.round(0   + speedRatio * 219);  // 0 → 219
-      const g = Math.round(240 - speedRatio * 16);   // 240 → 224
-      const b = Math.round(255 - speedRatio * 68);   // 255 → 187
-      const alpha = 0.65 + speedRatio * 0.35;
+      // Colour: cyberpunk hot pink (pure red/blue mix to stay pink when additively blended)
+      const r = 255;
+      const g = 0; // Keep green 0 to prevent turning white under additive blending
+      const b = Math.round(60 + speedRatio * 60);
+      const alpha = 0.4 + speedRatio * 0.2;
 
-      // Trail (drawn first so particle sits on top)
+      // Trail (continuous line instead of dotted marbles)
       if (p.trail.length > 1) {
-        for (let t = 0; t < p.trail.length; t++) {
+        ctx.beginPath();
+        const first = this.toCanvas(p.trail[0].x, p.trail[0].y);
+        ctx.moveTo(first.cx, first.cy);
+        for (let t = 1; t < p.trail.length; t++) {
           const { cx: tx, cy: ty } = this.toCanvas(p.trail[t].x, p.trail[t].y);
-          const ta  = (t / p.trail.length) * alpha * 0.4;
-          ctx.fillStyle = `rgba(${r},${g},${b},${ta})`;
-          const ts      = Math.max(0.5, scale * (0.8 + speedRatio));
-          ctx.fillRect(tx - ts * 0.5, ty - ts * 0.5, ts, ts);
+          ctx.lineTo(tx, ty);
         }
+        ctx.lineTo(cx, cy);
+        
+        ctx.strokeStyle = `rgba(${r},${g},${b},${alpha * 0.75})`;
+        ctx.lineWidth = Math.max(1.5, scale * (2 + speedRatio));
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+      } else {
+        // Particle dot if no trail
+        ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+        const ps       = Math.max(1.5, scale * (2 + speedRatio));
+        ctx.beginPath();
+        ctx.arc(cx, cy, ps * 0.5, 0, Math.PI * 2);
+        ctx.fill();
       }
-
-      // Particle dot
-      ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
-      const ps       = Math.max(1, scale * (1.5 + speedRatio));
-      ctx.fillRect(cx - ps * 0.5, cy - ps * 0.5, ps, ps);
     }
   }
 
@@ -343,9 +352,9 @@ class Renderer {
 
       const avgSpeed = streamline.totalSpeed / streamline.points.length;
       const speedRatio = Math.min(1, avgSpeed / 1.45);
-      const r = Math.round(0 + speedRatio * 219);
-      const g = Math.round(240 - speedRatio * 16);
-      const b = Math.round(255 - speedRatio * 68);
+      const r = 255;
+      const g = 0; // Pure hot pink
+      const b = Math.round(60 + speedRatio * 60);
 
       this._strokeSmoothStreamline(streamline.points, {
         strokeStyle: `rgba(${r},${g},${b},${0.10 + speedRatio * 0.06})`,

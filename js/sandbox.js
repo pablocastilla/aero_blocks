@@ -330,7 +330,7 @@ class SandboxMode {
     // Coefficients
     const refArea = Math.max(0.01, totalFrontalArea);
     const Cd = totalDragForce / (q_inf * refArea);
-    const Cl = totalLiftForce / (q_inf * refArea);
+    const Cl = -totalLiftForce / (q_inf * refArea);  // Downforce coefficient (negative lift)
 
     this.aeroResult = {
       Cd: Math.max(0, Cd),

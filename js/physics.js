@@ -60,7 +60,7 @@ class Particle {
     this.x    = spawnX + Math.random() * 20;
     this.y    = spawnBandY + (Math.random() - 0.5) * spawnBandH;
     this.vx   = windSpeed * (0.85 + Math.random() * 0.3);
-    this.vy   = windSpeed * (Math.random() - 0.5) * WIND_SPREAD;
+    this.vy   = 0; // laminar flow
     this.life = 0.7 + Math.random() * 0.3;
     this.active = true;
     this.trail  = [];
