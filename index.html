@@ -130,6 +130,17 @@
       </div>
     </div>
 
+    <!-- Wind Tunnel sandbox entry -->
+    <div class="sandbox-entry">
+      <button id="btn-sandbox" class="btn-sandbox">
+        <span class="sandbox-icon">🌀</span>
+        <span class="sandbox-label">
+          <span class="font-display">WIND TUNNEL</span>
+          <span class="label-sm">FREE PLAY — DRAW & TEST</span>
+        </span>
+      </button>
+    </div>
+
     <button id="btn-to-title" class="btn-secondary" style="margin-top:2rem">◀  ABORT</button>
   </div>
 
@@ -198,6 +209,46 @@
   </div>
 
   <!-- ╔═══════════════════════════════════════╗ -->
+  <!-- ║         WIND TUNNEL SANDBOX           ║ -->
+  <!-- ╚═══════════════════════════════════════╝ -->
+  <div id="screen-sandbox" class="screen hidden">
+    <div class="screen-bg-grid"></div>
+
+    <!-- Sandbox Toolbar (top) -->
+    <div id="sandbox-toolbar" class="sandbox-toolbar">
+      <button id="sb-back" class="btn-secondary btn-sm" title="Back to phases">◀ BACK</button>
+      <div class="sb-sep"></div>
+      <button id="sb-undo" class="btn-secondary btn-sm" title="Undo last shape (Ctrl+Z)">↩ UNDO</button>
+      <button id="sb-clear" class="btn-secondary btn-sm" title="Clear all shapes">✕ CLEAR</button>
+      <div class="sb-sep"></div>
+      <div class="sb-wind-group">
+        <span class="label-sm">WIND</span>
+        <input id="sb-wind-slider" type="range" min="5" max="80" value="30" step="1" class="sb-slider">
+        <span id="sb-wind-val" class="font-mono sb-wind-val">30 m/s</span>
+      </div>
+    </div>
+
+    <!-- Sandbox Aero Readout (bottom center, minimal) -->
+    <div id="sandbox-readout" class="sandbox-readout">
+      <div class="sb-aero-group">
+        <span class="label-sm" style="color:var(--secondary-container)">DRAG Cd</span>
+        <span id="sb-cd" class="font-mono sb-aero-val" style="color:var(--secondary-container)">0.00</span>
+      </div>
+      <div class="sb-aero-sep"></div>
+      <div class="sb-aero-group">
+        <span class="label-sm" style="color:var(--tertiary)">DOWNFORCE Cl</span>
+        <span id="sb-cl" class="font-mono sb-aero-val" style="color:var(--tertiary)">0.00</span>
+      </div>
+    </div>
+
+    <!-- Draw hint (shown when no shapes) -->
+    <div id="sandbox-hint" class="sandbox-hint">
+      <span class="font-display" style="color:var(--primary);font-size:clamp(1rem,2.5vw,1.6rem)">DRAW A SHAPE</span>
+      <span class="label-sm" style="color:var(--outline);margin-top:0.4rem">USE YOUR MOUSE OR FINGER TO SKETCH</span>
+    </div>
+  </div>
+
+  <!-- ╔═══════════════════════════════════════╗ -->
   <!-- ║           DEBUG CONTROL PANEL          ║ -->
   <!-- ╚═══════════════════════════════════════╝ -->
   <div id="debug-panel" class="hidden" aria-hidden="true">
@@ -235,6 +286,7 @@
   <script src="js/input.js"></script>
   <script src="js/levels.js"></script>
   <script src="js/hud.js"></script>
+  <script src="js/sandbox.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

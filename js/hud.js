@@ -63,6 +63,15 @@ class HUD {
       btnRetry:     document.getElementById('btn-retry'),
       btnPhasesBack:document.getElementById('btn-phases-back'),
       btnNext:      document.getElementById('btn-next'),
+
+      // Sandbox
+      sandbox:      document.getElementById('screen-sandbox'),
+      btnSandbox:   document.getElementById('btn-sandbox'),
+      sbBack:       document.getElementById('sb-back'),
+      sbUndo:       document.getElementById('sb-undo'),
+      sbClear:      document.getElementById('sb-clear'),
+      sbWindSlider: document.getElementById('sb-wind-slider'),
+      sbWindVal:    document.getElementById('sb-wind-val'),
     };
 
     // Callbacks — set via bindEvents()
@@ -98,6 +107,7 @@ class HUD {
     levelSelect.classList.add('hidden'); levelSelect.classList.remove('active');
     complete.classList.add('hidden');    complete.classList.remove('active');
     hud.classList.add('hidden');
+    this._el.sandbox.classList.add('hidden'); this._el.sandbox.classList.remove('active');
 
     // Show target
     switch (name) {
@@ -116,6 +126,9 @@ class HUD {
         break;
       case 'complete':
         complete.classList.remove('hidden'); complete.classList.add('active');
+        break;
+      case 'sandbox':
+        this._el.sandbox.classList.remove('hidden'); this._el.sandbox.classList.add('active');
         break;
     }
   }
@@ -357,6 +370,25 @@ class HUD {
     _el.btnPhasesBack.addEventListener('pointerup', () => _cb.onToPhases?.());
     _el.btnNext.addEventListener('pointerup', () => {
       if (!_el.btnNext.disabled) _cb.onNext?.();
+    });
+
+    // Sandbox
+    _el.btnSandbox.addEventListener('pointerup', () => _cb.onSandbox?.());
+    _el.sbBack.addEventListener('pointerup', () => _cb.onSandboxBack?.());
+    _el.sbUndo.addEventListener('pointerup', () => _cb.onSandboxUndo?.());
+    _el.sbClear.addEventListener('pointerup', () => _cb.onSandboxClear?.());
+    _el.sbWindSlider.addEventListener('input', () => {
+      const v = parseInt(_el.sbWindSlider.value);
+      _el.sbWindVal.textContent = v + ' m/s';
+      _cb.onSandboxWind?.(v);
+    });
+
+    // Keyboard shortcuts for sandbox
+    document.addEventListener('keydown', e => {
+      if (e.ctrlKey && e.key === 'z') {
+        _cb.onSandboxUndo?.();
+        e.preventDefault();
+      }
     });
   }
 

@@ -1,7 +1,7 @@
 /**
  * main.js — Game Orchestrator
  *
- * State machine: TITLE → PHASE_SELECT → LEVEL_SELECT → PLAYING → COMPLETE
+ * State machine: TITLE → PHASE_SELECT → LEVEL_SELECT → PLAYING → COMPLETE → SANDBOX
  * Manages the game loop, input routing, level loading, scoring, and transitions.
  *
  * Depends on (loaded before this):
@@ -38,7 +38,7 @@ class Game {
     this.hud       = new HUD();
 
     // State
-    this.state         = 'TITLE';      // TITLE|PHASE_SELECT|LEVEL_SELECT|PLAYING|COMPLETE
+    this.state         = 'TITLE';      // TITLE|PHASE_SELECT|LEVEL_SELECT|PLAYING|COMPLETE|SANDBOX
     this.currentLevelIdx = 0;
     this.currentPhaseIdx = 0;         // 0-based
 
@@ -73,6 +73,9 @@ class Game {
     // Glitch flash state
     this._flashAlpha = 0;
 
+    // Sandbox mode
+    this.sandbox = new SandboxMode(this.canvas, this.renderer, this.input);
+
     this._setupResize();
     this._setupInput();
     this._setupHUD();
@@ -95,6 +98,11 @@ class Game {
   }
 
   _update(dt) {
+    if (this.state === 'SANDBOX') {
+      this.sandbox.update(dt);
+      this._updateSandboxHUD();
+      return;
+    }
     if (this.state !== 'PLAYING') return;
 
     const level = LEVELS[this.currentLevelIdx];
@@ -186,6 +194,11 @@ class Game {
   // ── RENDER ────────────────────────────────────────────────────
 
   _render(time) {
+    if (this.state === 'SANDBOX') {
+      this.renderer.drawSandboxFrame(this.sandbox.getDrawState());
+      return;
+    }
+
     if (this.state !== 'PLAYING' && this.state !== 'COMPLETE') {
       // Background only when on menu screens
       const ctx = this.canvas.getContext('2d');
@@ -495,6 +508,10 @@ class Game {
     const inp = this.input;
 
     inp.onDragStart(drag => {
+      if (this.state === 'SANDBOX') {
+        this.sandbox.onPointerDown(drag.currentVX, drag.currentVY);
+        return;
+      }
       if (this.state !== 'PLAYING') return;
       const level = LEVELS[this.currentLevelIdx];
 
@@ -506,6 +523,10 @@ class Game {
     });
 
     inp.onDragMove(drag => {
+      if (this.state === 'SANDBOX') {
+        this.sandbox.onPointerMove(drag.currentVX, drag.currentVY);
+        return;
+      }
       if (this.state !== 'PLAYING') return;
       const level = LEVELS[this.currentLevelIdx];
 
@@ -516,7 +537,14 @@ class Game {
       }
     });
 
-    inp.onDragEnd(() => {
+    inp.onDragEnd(drag => {
+      if (this.state === 'SANDBOX') {
+        this.sandbox.onPointerUp(
+          drag ? drag.currentVX : 0,
+          drag ? drag.currentVY : 0
+        );
+        return;
+      }
       this.dragProfileIdx   = -1;
       this.dragF1HandleIdx  = -1;
       this.f1SelHandle      = -1;
@@ -629,10 +657,40 @@ class Game {
       },
       onToPhases:    () => this._goToPhaseSelect(),
       onRotateToggle: (v) => this.input.setRotateMode(v),
+      onSandbox:      () => this._enterSandbox(),
+      onSandboxBack:  () => this._exitSandbox(),
+      onSandboxClear: () => this.sandbox.clearAllShapes(),
+      onSandboxUndo:  () => this.sandbox.undoLastShape(),
+      onSandboxWind:  (v) => this.sandbox.setWindSpeed(v),
     });
 
     this.hud.showScreen('title');
     this.hud.updatePhaseUnlocks(0); // Only phase 0 unlocked initially
+  }
+
+  _enterSandbox() {
+    this.state = 'SANDBOX';
+    this.sandbox.enter();
+    this.hud.showScreen('sandbox');
+  }
+
+  _exitSandbox() {
+    this.sandbox.exit();
+    this._goToPhaseSelect();
+  }
+
+  _updateSandboxHUD() {
+    const { Cd, Cl } = this.sandbox.aeroResult;
+    const cdEl = document.getElementById('sb-cd');
+    const clEl = document.getElementById('sb-cl');
+    if (cdEl) cdEl.textContent = Math.abs(Cd).toFixed(2);
+    if (clEl) clEl.textContent = Cl.toFixed(2);
+
+    // Show/hide hint
+    const hint = document.getElementById('sandbox-hint');
+    if (hint) {
+      hint.classList.toggle('hidden', this.sandbox.shapes.length > 0);
+    }
   }
 
   _onStart() {

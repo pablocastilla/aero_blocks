@@ -1020,4 +1020,161 @@ class Renderer {
   drawCompleteFlash(alpha) {
     this.drawFlash(alpha * 0.3);
   }
+
+  // ── SANDBOX MODE RENDERING ─────────────────────────────────────
+
+  drawSandboxFrame(state) {
+    const { shapes, currentDraw, isDrawing, particles, time } = state;
+    const ctx = this.ctx;
+    this._time = time;
+
+    ctx.save();
+
+    // 1 ── Background
+    this._drawBackground();
+
+    // 2 ── Wind direction chevrons
+    this._drawWindArrow();
+
+    // 3 ── Draw completed shapes (filled with semi-transparent neon + glow stroke)
+    for (const shape of shapes) {
+      this._drawSandboxShape(shape, time);
+    }
+
+    // 4 ── Draw in-progress shape (dashed neon line)
+    if (currentDraw && currentDraw.points.length > 1) {
+      this._drawSandboxCurrentDraw(currentDraw);
+    }
+
+    // 5 ── Particles (additive blending)
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    this._drawSandboxParticles(particles);
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  _drawSandboxShape(shape, time) {
+    const ctx = this.ctx;
+    const pts = shape.points;
+    if (!pts || pts.length < 3) return;
+
+    // Fill
+    ctx.beginPath();
+    let p0 = this.toCanvas(pts[0].x, pts[0].y);
+    ctx.moveTo(p0.cx, p0.cy);
+    for (let i = 1; i < pts.length; i++) {
+      const p = this.toCanvas(pts[i].x, pts[i].y);
+      ctx.lineTo(p.cx, p.cy);
+    }
+    ctx.closePath();
+
+    // Semi-transparent fill
+    ctx.fillStyle = 'rgba(20,35,42,0.7)';
+    ctx.fill();
+
+    // Scanline texture on shape
+    const scanPat = this._scanlinePattern;
+    if (scanPat) {
+      ctx.fillStyle = scanPat;
+      ctx.fill();
+    }
+
+    // Neon stroke with glow
+    const pulse = 0.7 + 0.3 * Math.sin(time * 2.0);
+    ctx.strokeStyle = C_PRIMARY;
+    ctx.lineWidth   = this.px(3);
+    ctx.shadowColor = C_PRIMARY;
+    ctx.shadowBlur  = (10 + pulse * 6) * this.scale;
+    ctx.lineJoin    = 'round';
+    ctx.lineCap     = 'round';
+    ctx.stroke();
+    ctx.shadowBlur  = 0;
+  }
+
+  _drawSandboxCurrentDraw(draw) {
+    const ctx = this.ctx;
+    const pts = draw.points;
+    if (pts.length < 2) return;
+
+    ctx.beginPath();
+    let p0 = this.toCanvas(pts[0].x, pts[0].y);
+    ctx.moveTo(p0.cx, p0.cy);
+    for (let i = 1; i < pts.length; i++) {
+      const p = this.toCanvas(pts[i].x, pts[i].y);
+      ctx.lineTo(p.cx, p.cy);
+    }
+
+    // Dashed neon line
+    ctx.setLineDash([this.px(8), this.px(6)]);
+    ctx.strokeStyle = 'rgba(0,240,255,0.7)';
+    ctx.lineWidth   = this.px(2.5);
+    ctx.shadowColor = C_PRIMARY;
+    ctx.shadowBlur  = 8 * this.scale;
+    ctx.lineJoin    = 'round';
+    ctx.lineCap     = 'round';
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.shadowBlur  = 0;
+
+    // Draw closing line (dashed, dimmer) from last point to first
+    if (pts.length > 5) {
+      const last  = this.toCanvas(pts[pts.length - 1].x, pts[pts.length - 1].y);
+      const first = this.toCanvas(pts[0].x, pts[0].y);
+      ctx.beginPath();
+      ctx.moveTo(last.cx, last.cy);
+      ctx.lineTo(first.cx, first.cy);
+      ctx.setLineDash([this.px(4), this.px(8)]);
+      ctx.strokeStyle = 'rgba(0,240,255,0.25)';
+      ctx.lineWidth   = this.px(1.5);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Start point marker
+    const sp = this.toCanvas(pts[0].x, pts[0].y);
+    ctx.fillStyle = C_PRIMARY;
+    ctx.shadowColor = C_PRIMARY;
+    ctx.shadowBlur  = 8 * this.scale;
+    ctx.beginPath();
+    ctx.arc(sp.cx, sp.cy, this.px(4), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  _drawSandboxParticles(particles) {
+    const ctx   = this.ctx;
+    const scale = this.scale;
+
+    for (const p of particles) {
+      if (!p.active) continue;
+
+      const { cx, cy } = this.toCanvas(p.x, p.y);
+      const speed       = p.speed();
+      const speedRatio  = Math.min(1, speed / 350);
+
+      // Colour: cyan at slow → white at fast
+      const r = Math.round(0   + speedRatio * 219);
+      const g = Math.round(240 - speedRatio * 16);
+      const b = Math.round(255 - speedRatio * 68);
+      const alpha = 0.55 + speedRatio * 0.45;
+
+      // Trail
+      if (p.trail.length > 1) {
+        for (let t = 0; t < p.trail.length; t++) {
+          const { cx: tx, cy: ty } = this.toCanvas(p.trail[t].x, p.trail[t].y);
+          const ta  = (t / p.trail.length) * alpha * 0.35;
+          ctx.fillStyle = `rgba(${r},${g},${b},${ta})`;
+          const ts = Math.max(0.5, scale * (0.8 + speedRatio * 0.5));
+          ctx.fillRect(tx - ts * 0.5, ty - ts * 0.5, ts, ts);
+        }
+      }
+
+      // Particle dot
+      ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+      const ps = Math.max(1, scale * (1.5 + speedRatio));
+      ctx.fillRect(cx - ps * 0.5, cy - ps * 0.5, ps, ps);
+    }
+  }
 }
